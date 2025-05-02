@@ -108,6 +108,10 @@ type DeepSeekUsageResponse struct {
 	} `json:"balance_infos"`
 }
 
+type KlusterBalanceResponse struct {
+	Balance float64 `json:"balance"`
+}
+
 // GetAuthHeader get auth header
 func GetAuthHeader(token string) http.Header {
 	h := http.Header{}
@@ -281,6 +285,21 @@ func updateChannelAIGC2DBalance(channel *model.Channel) (float64, error) {
 	return response.TotalAvailable, nil
 }
 
+func updateChannelKlusterBalance(channel *model.Channel) (float64, error) {
+	url := "https://api.kluster.ai/v1/user/balance"
+	body, err := GetResponseBody("GET", url, channel, GetAuthHeader(channel.Key))
+	if err != nil {
+		return 0, err
+	}
+	response := KlusterBalanceResponse{}
+	err = json.Unmarshal(body, &response)
+	if err != nil {
+		return 0, err
+	}
+	channel.UpdateBalance(response.Balance)
+	return response.Balance, nil
+}
+
 func updateChannelBalance(channel *model.Channel) (float64, error) {
 	baseURL := common.ChannelBaseURLs[channel.Type]
 	if channel.GetBaseURL() == "" {
@@ -307,6 +326,8 @@ func updateChannelBalance(channel *model.Channel) (float64, error) {
 		return updateChannelSiliconFlowBalance(channel)
 	case common.ChannelTypeDeepSeek:
 		return updateChannelDeepSeekBalance(channel)
+	case common.ChannelTypeKluster:
+		return updateChannelKlusterBalance(channel)
 	default:
 		return 0, errors.New("尚未实现")
 	}
